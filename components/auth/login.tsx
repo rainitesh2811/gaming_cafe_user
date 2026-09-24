@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { Coffee, Sparkles } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 
 type LoginProps = { onAuthenticated: () => void; onSignup: () => void }
 
@@ -12,6 +12,15 @@ export function Login({ onAuthenticated, onSignup }: LoginProps) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const oauthError = params.get('error_description') || params.get('error')
+    if (oauthError) {
+      setError(oauthError.replace(/\+/g, ' '))
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
