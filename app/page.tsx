@@ -1,9 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Bell, CalendarDays, ChevronDown, Coffee, DollarSign, Download, Ellipsis, LayoutDashboard, LogOut, Menu, Package, Plus, Search, Settings, ShoppingBag, Sparkles, TrendingUp, Users, X } from 'lucide-react'
+import { Login } from '@/components/auth/login'
+import { Signup } from '@/components/auth/signup'
 import { Button } from '@/components/ui/button'
+import { supabase } from '@/lib/supabase'
+import { Bell, CalendarDays, ChevronDown, Coffee, DollarSign, Download, Ellipsis, LogOut, Menu, Package, Plus, Settings, Sparkles, TrendingUp, Users, X } from 'lucide-react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 type Event = { id: number; title: string; date: string; time: string; audience: string; color: string }
 type Item = { id: number; name: string; category: string; stock: number; price: number; threshold: number }
@@ -31,8 +34,49 @@ const initialItems: Item[] = [
 function Logo() { return <div className="flex items-center gap-2.5"><span className="flex size-9 items-center justify-center rounded-xl bg-[#f5f7ff] text-[#6df6f0]"><Coffee className="size-5" /></span><span className="font-serif text-xl font-semibold tracking-tight text-[#f5f7ff]">LevelUp Gaming Cafe</span></div> }
 function Status({ item }: { item: Item }) { const status = item.stock === 0 ? ['Out of stock', 'bg-red-50 text-red-700'] : item.stock <= item.threshold ? ['Low stock', 'bg-amber-50 text-amber-700'] : ['In stock', 'bg-emerald-50 text-emerald-700']; return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${status[1]}`}>{status[0]}</span> }
 
+function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
+  const [isSignup, setIsSignup] = useState(false)
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) onAuthenticated()
+    })
+  }, [onAuthenticated])
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError('')
+    setIsSubmitting(true)
+
+    const result = isSignup
+      ? await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName } } })
+      : await supabase.auth.signInWithPassword({ email, password })
+
+    if (result.error) {
+      setError(result.error.message)
+    } else if (isSignup && !result.data.session) {
+      setError('Account created. Check your email to confirm your account, then log in.')
+    } else {
+      onAuthenticated()
+    }
+
+    setIsSubmitting(false)
+  }
+
+  return <main className="min-h-screen bg-[#090b14] px-5 py-8 text-[#f5f7ff] sm:px-10"><div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl flex-col justify-between"><header><Logo /></header><section className="grid items-center gap-12 py-16 lg:grid-cols-[1.05fr_.95fr]"><div className="max-w-xl"><span className="mb-5 inline-flex items-center gap-2 rounded-full bg-[#222743] px-3 py-1.5 text-xs font-semibold uppercase tracking-[.16em] text-[#a66116]"><Sparkles className="size-3.5" /> Your gaming cafe, in sync</span><h1 className="font-serif text-5xl leading-[1.02] tracking-tight sm:text-7xl">Power every session a little better.</h1><p className="mt-6 max-w-md text-base leading-7 text-[#8e94ac]">A calmer way to manage your cafe, understand your customers, and keep the good stuff flowing.</p></div><div className="rounded-3xl border border-[#282d42] bg-[#15192a] p-7 shadow-[0_20px_60px_-24px_rgba(85,52,25,.25)] sm:p-9"><div className="mb-7 flex gap-6 border-b border-[#eee5d9]"><button type="button" onClick={() => { setIsSignup(false); setError('') }} className={`pb-3 text-sm font-semibold ${!isSignup ? 'border-b-2 border-[#ad7cff] text-[#f5f7ff]' : 'text-[#a4978c]'}`}>Log in</button><button type="button" onClick={() => { setIsSignup(true); setError('') }} className={`pb-3 text-sm font-semibold ${isSignup ? 'border-b-2 border-[#ad7cff] text-[#f5f7ff]' : 'text-[#a4978c]'}`}>Create account</button></div><form onSubmit={handleSubmit} className="space-y-4">{isSignup && <label className="block text-sm font-medium">Full name<input required value={fullName} onChange={(event) => setFullName(event.target.value)} className="mt-2 w-full rounded-xl border border-[#e7ded2] bg-[#0d101d] px-4 py-3 outline-none transition focus:border-[#c78a43]" placeholder="Alex Morgan" /></label>}<label className="block text-sm font-medium">Email address<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-2 w-full rounded-xl border border-[#e7ded2] bg-[#0d101d] px-4 py-3 outline-none transition focus:border-[#c78a43]" placeholder="you@example.com" /></label><label className="block text-sm font-medium">Password<input required minLength={6} type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="mt-2 w-full rounded-xl border border-[#e7ded2] bg-[#0d101d] px-4 py-3 outline-none transition focus:border-[#c78a43]" placeholder="••••••••" /></label>{error && <p role="alert" className="text-sm text-amber-300">{error}</p>}<Button disabled={isSubmitting} className="mt-2 h-12 w-full rounded-xl bg-[#f5f7ff] text-[#15192a] hover:bg-[#e8d9c8]">{isSubmitting ? 'Please wait...' : isSignup ? 'Create your account' : 'Log in to dashboard'} <span aria-hidden="true">→</span></Button></form><p className="mt-5 text-center text-xs text-[#a4978c]">By continuing, you agree to our Terms and Privacy Policy.</p></div></section><footer className="flex justify-between text-xs text-[#a4978c]"><span>© 2024 LevelUp Gaming Cafe</span><span>Made for better mornings.</span></footer></div></main>
+}
+
 export default function Page() {
-  const [loggedIn, setLoggedIn] = useState(false)
+  const [loggedIn, setLoggedInState] = useState(false)
+  const setLoggedIn = (value: boolean) => {
+    if (!value) void supabase.auth.signOut()
+    setLoggedInState(value)
+  }
   const [loginError, setLoginError] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -43,6 +87,27 @@ export default function Page() {
   const [items, setItems] = useState(initialItems)
   const [modal, setModal] = useState<'event' | 'item' | null>(null)
   const data = useMemo(() => chartSets[period], [period])
+
+  useEffect(() => {
+    let mounted = true
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (mounted) setLoggedInState(Boolean(session))
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) setLoggedInState(Boolean(session))
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  if (!loggedIn) return isSignup
+    ? <Signup onAuthenticated={() => setLoggedInState(true)} onLogin={() => setIsSignup(false)} />
+    : <Login onAuthenticated={() => setLoggedInState(true)} onSignup={() => setIsSignup(true)} />
 
   if (!loggedIn) return <main className="min-h-screen bg-[#090b14] px-5 py-8 text-[#f5f7ff] sm:px-10"><div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl flex-col justify-between"><header><Logo /></header><section className="grid items-center gap-12 py-16 lg:grid-cols-[1.05fr_.95fr]"><div className="max-w-xl"><span className="mb-5 inline-flex items-center gap-2 rounded-full bg-[#222743] px-3 py-1.5 text-xs font-semibold uppercase tracking-[.16em] text-[#a66116]"><Sparkles className="size-3.5" /> Your gaming cafe, in sync</span><h1 className="font-serif text-5xl leading-[1.02] tracking-tight sm:text-7xl">Power every session a little better.</h1><p className="mt-6 max-w-md text-base leading-7 text-[#8e94ac]">A calmer way to manage your cafe, understand your customers, and keep the good stuff flowing.</p></div><div className="rounded-3xl border border-[#282d42] bg-[#15192a] p-7 shadow-[0_20px_60px_-24px_rgba(85,52,25,.25)] sm:p-9"><div className="mb-7 flex gap-6 border-b border-[#eee5d9]"><button onClick={() => setIsSignup(false)} className={`pb-3 text-sm font-semibold ${!isSignup ? 'border-b-2 border-[#ad7cff] text-[#f5f7ff]' : 'text-[#a4978c]'}`}>Log in</button><button onClick={() => setIsSignup(true)} className={`pb-3 text-sm font-semibold ${isSignup ? 'border-b-2 border-[#ad7cff] text-[#f5f7ff]' : 'text-[#a4978c]'}`}>Create account</button></div><form onSubmit={(e) => { e.preventDefault(); if (email === 'rainitesh513@gmail.com' && password === '12345678') { setLoginError(''); setLoggedIn(true) } else { setLoginError('Use the demo email and password shown below.') } }} className="space-y-4">{isSignup && <label className="block text-sm font-medium">Full name<input required className="mt-2 w-full rounded-xl border border-[#e7ded2] bg-[#0d101d] px-4 py-3 outline-none transition focus:border-[#c78a43]" placeholder="Alex Morgan" /></label>}<label className="block text-sm font-medium">Email address<input required type="email" className="mt-2 w-full rounded-xl border border-[#e7ded2] bg-[#0d101d] px-4 py-3 outline-none transition focus:border-[#c78a43]" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="rainitesh513@gmail.com" /></label><label className="block text-sm font-medium">Password<input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-2 w-full rounded-xl border border-[#e7ded2] bg-[#0d101d] px-4 py-3 outline-none transition focus:border-[#c78a43]" placeholder="••••••••" /></label><Button className="mt-2 h-12 w-full rounded-xl bg-[#f5f7ff] text-white hover:bg-[#543521]">{isSignup ? 'Create your account' : 'Log in to dashboard'} <span aria-hidden="true">→</span></Button></form><p className="mt-5 text-center text-xs text-[#a4978c]">By continuing, you agree to our Terms and Privacy Policy.</p></div></section><footer className="flex justify-between text-xs text-[#a4978c]"><span>© 2024 LevelUp Gaming Cafe</span><span>Made for better mornings.</span></footer></div></main>
 
